@@ -13,7 +13,8 @@
 @property(nonatomic, retain) UIColor *tintColor UI_APPEARANCE_SELECTOR;
 @property(nonatomic, retain) UIColor *onTintColor UI_APPEARANCE_SELECTOR;
 @property(nonatomic, assign) UIColor *offTintColor UI_APPEARANCE_SELECTOR;
-@property(nonatomic, assign) UIColor *thumbTintColor UI_APPEARANCE_SELECTOR;
+@property(nonatomic, assign) UIColor *onThumbTintColor UI_APPEARANCE_SELECTOR;
+@property(nonatomic, assign) UIColor *offthumbTintColor UI_APPEARANCE_SELECTOR;
 
 @property(nonatomic,getter=isOn) BOOL on;
 
