@@ -12,10 +12,9 @@
 
 @interface MBSwitch () <UIGestureRecognizerDelegate> {
     CAShapeLayer *_thumbLayer;
-    CAShapeLayer *_fillLayer;
+    CAShapeLayer *_offLayer;
+    CAShapeLayer *_onLayer;
     CAShapeLayer *_backLayer;
-    CALayer *_onIMGLayer;
-    CALayer *_offIMGLayer;
     BOOL _dragging;
     BOOL _on;
 }
@@ -36,12 +35,8 @@
     return self;
 }
 
-- (id)initWithCoder:(NSCoder *)aDecoder {
-    if( (self = [super initWithCoder:aDecoder]) ){
-        [self layoutIfNeeded];
-        [self configure];
-    }
-    return self;
+- (void) awakeFromNib {
+    [self configure];
 }
 
 - (void) configure {
@@ -49,44 +44,49 @@
     if (self.frame.size.height > self.frame.size.width*0.65) {
         self.frame = CGRectMake(self.frame.origin.x, self.frame.origin.y, self.frame.size.width, ceilf(0.6*self.frame.size.width));
     }
-
+    
     [self setBackgroundColor:[UIColor clearColor]];
-    
-    _onTintColor = [UIColor colorWithRed:0.27f green:0.85f blue:0.37f alpha:1.00f];
-    [self setBacklayerOnTintColorIfNeeded];
-    
-    _tintColor = [UIColor colorWithRed:0.90f green:0.90f blue:0.90f alpha:1.00f];
-    [self setBacklayerTintColorIfNeeded];
+    self.onTintColor = [UIColor colorWithRed:0.27f green:0.85f blue:0.37f alpha:1.00f];
+    self.tintColor = [UIColor colorWithRed:0.90f green:0.90f blue:0.90f alpha:1.00f];
+    self.offTintColor = [UIColor whiteColor];
     
     _on = NO;
     _pressed = NO;
     _dragging = NO;
     
-    
-    _backLayer = [CAShapeLayer layer];
-    _backLayer.backgroundColor = [[UIColor clearColor] CGColor];
+    _backLayer = [[CAShapeLayer layer] retain];
+    _backLayer.backgroundColor = [_tintColor CGColor];
     _backLayer.frame = self.bounds;
     _backLayer.cornerRadius = self.bounds.size.height/2.0;
-    CGPathRef path1 = [UIBezierPath bezierPathWithRoundedRect:_backLayer.bounds cornerRadius:floorf(_backLayer.bounds.size.height/2.0)].CGPath;
-    _backLayer.path = path1;
-    [_backLayer setValue:[NSNumber numberWithBool:NO] forKey:@"isOn"];
-    _backLayer.fillColor = [_tintColor CGColor];
+
     [self.layer addSublayer:_backLayer];
+
+    _onLayer = [[CAShapeLayer layer] retain];
+    _onLayer.backgroundColor = [[UIColor clearColor] CGColor];
+    _onLayer.frame = CGRectInset(self.bounds, 1.5, 1.5);
+    _onLayer.cornerRadius = _onLayer.bounds.size.height/2.0;
+    CGPathRef path1 = [UIBezierPath bezierPathWithRoundedRect:_onLayer.bounds cornerRadius:floorf(_onLayer.bounds.size.height/2.0)].CGPath;
+    _onLayer.path = path1;
+    [_onLayer setValue:[NSNumber numberWithBool:NO] forKey:@"isOn"];
+    _onLayer.fillColor = [_tintColor CGColor];
     
-    _fillLayer = [CAShapeLayer layer];
-    _fillLayer.backgroundColor = [[UIColor clearColor] CGColor];
-    _fillLayer.frame = CGRectInset(self.bounds, 1.5, 1.5);
-    CGPathRef path = [UIBezierPath bezierPathWithRoundedRect:_fillLayer.bounds cornerRadius:floorf(_fillLayer.bounds.size.height/2.0)].CGPath;
-    _fillLayer.path = path;
-    [_fillLayer setValue:[NSNumber numberWithBool:YES] forKey:@"isVisible"];
-    _fillLayer.fillColor = [[UIColor whiteColor] CGColor];
-    [self.layer addSublayer:_fillLayer];
+    [self.layer addSublayer:_onLayer];
+    
+    _offLayer = [[CAShapeLayer layer] retain];
+    _offLayer.backgroundColor = [[UIColor clearColor] CGColor];
+    _offLayer.frame = CGRectInset(self.bounds, 1.5, 1.5);
+
+    CGPathRef path = [UIBezierPath bezierPathWithRoundedRect:_offLayer.bounds cornerRadius:floorf(_offLayer.bounds.size.height/2.0)].CGPath;
+    _offLayer.path = path;
+    [_offLayer setValue:[NSNumber numberWithBool:YES] forKey:@"isVisible"];
+    _offLayer.fillColor = [[UIColor whiteColor] CGColor];
+    [self.layer addSublayer:_offLayer];
     
     
-    _thumbLayer = [CAShapeLayer layer];
+    _thumbLayer = [[CAShapeLayer layer] retain];
     _thumbLayer.backgroundColor = [[UIColor clearColor] CGColor];
-    _thumbLayer.frame = CGRectMake(2.0, 2.0, self.bounds.size.height-4.0, self.bounds.size.height-4.0);
-    _thumbLayer.cornerRadius = _thumbLayer.frame.size.height/2.0;
+    _thumbLayer.frame = CGRectMake(1.0, 1.0, self.bounds.size.height-2.0, self.bounds.size.height-2.0);
+    _thumbLayer.cornerRadius = self.bounds.size.height/2.0;
     CGPathRef knobPath = [UIBezierPath bezierPathWithRoundedRect:_thumbLayer.bounds cornerRadius:floorf(_thumbLayer.bounds.size.height/2.0)].CGPath;
     _thumbLayer.path = knobPath;
     _thumbLayer.fillColor = [UIColor whiteColor].CGColor;
@@ -96,41 +96,19 @@
     _thumbLayer.shadowOpacity = 0.3;
     [self.layer addSublayer:_thumbLayer];
     
-    _onIMGLayer = [CALayer layer];
-    _offIMGLayer = [CALayer layer];
-    
     UITapGestureRecognizer *tapGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self
-                                                                                           action:@selector(tapped:)];
+                                                                                            action:@selector(tapped:)];
     [tapGestureRecognizer setDelegate:self];
     [self addGestureRecognizer:tapGestureRecognizer];
     
     UIPanGestureRecognizer *panGestureRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self
-                                                                                           action:@selector(toggleDragged:)];
+                                                                                            action:@selector(toggleDragged:)];
     //[panGestureRecognizer requireGestureRecognizerToFail:tapGestureRecognizer];
     [panGestureRecognizer setDelegate:self];
     [self addGestureRecognizer:panGestureRecognizer];
-}
-
-
-#pragma mark -
-#pragma mark Images
-- (void)setOnImageNamed:(NSString*)imageName{
-
-    _onIMGLayer.contents = (id)[UIImage imageNamed:imageName].CGImage;
-    _onIMGLayer.backgroundColor = [[UIColor clearColor] CGColor];
-    _onIMGLayer.frame = CGRectMake(0.0, 0.0, _thumbLayer.frame.size.width, _thumbLayer.frame.size.height);
     
-    [_thumbLayer addSublayer:_onIMGLayer];
-    [self setImagesOn:_on];
-}
-
-- (void)setOffImageNamed:(NSString*)imageName{
-    _offIMGLayer.contents = (id)[UIImage imageNamed:imageName].CGImage;
-    _offIMGLayer.backgroundColor = [[UIColor clearColor] CGColor];
-    _offIMGLayer.frame = CGRectMake(0.0, 0.0, _thumbLayer.frame.size.width, _thumbLayer.frame.size.height);
-    
-    [_thumbLayer addSublayer:_offIMGLayer];
-    [self setImagesOn:_on];
+    [tapGestureRecognizer release];
+    [panGestureRecognizer release];
 }
 
 #pragma mark -
@@ -145,50 +123,30 @@
 }
 
 - (void)setOn:(BOOL)on animated:(BOOL)animated {
-
+    
     if (_on != on) {
-        [self willChangeValueForKey:@"on"];
         _on = on;
-        [self didChangeValueForKey:@"on"];
         [self sendActionsForControlEvents:UIControlEventValueChanged];
     }
-
-    [CATransaction begin];
     if (animated) {
+        [CATransaction begin];
         [CATransaction setAnimationDuration:0.3];
         [CATransaction setDisableActions:NO];
         _thumbLayer.frame = [self thumbFrameForState:_on];
+        [CATransaction commit];
     }else {
         [CATransaction setDisableActions:YES];
         _thumbLayer.frame = [self thumbFrameForState:_on];
     }
-    [CATransaction commit];
-
     [self setBackgroundOn:_on animated:animated];
     [self showFillLayer:!_on animated:animated];
-    [self setImagesOn:_on];
-}
-
--(void)setImagesOn:(BOOL)on{
-    CALayer* animOut = nil;
-    CALayer* animIn = nil;
-    if(on){
-        animOut = _offIMGLayer;
-        animIn = _onIMGLayer;
-    }
-    else{
-        animOut = _onIMGLayer;
-        animIn = _offIMGLayer;
-    }
-
-    animOut.frame = CGRectMake(_thumbLayer.frame.size.width/2, _thumbLayer.frame.size.height/2, 0, 0);
-    animIn.frame = CGRectMake(0.0, 0.0, _thumbLayer.frame.size.width, _thumbLayer.frame.size.height);
+    [self updateBackLayerColorWithanimated:animated];
 }
 
 - (void) setBackgroundOn:(BOOL)on animated:(BOOL)animated {
-    BOOL isOn = [[_backLayer valueForKey:@"isOn"] boolValue];
+    BOOL isOn = [[_onLayer valueForKey:@"isOn"] boolValue];
     if (on != isOn) {
-        [_backLayer setValue:[NSNumber numberWithBool:on] forKey:@"isOn"];
+        [_onLayer setValue:[NSNumber numberWithBool:on] forKey:@"isOn"];
         if (animated) {
             CABasicAnimation *animateColor = [CABasicAnimation animationWithKeyPath:@"fillColor"];
             animateColor.duration = 0.22;
@@ -196,45 +154,57 @@
             animateColor.toValue = on ? (id)_onTintColor.CGColor : (id)_tintColor.CGColor;
             animateColor.removedOnCompletion = NO;
             animateColor.fillMode = kCAFillModeForwards;
-            [_backLayer addAnimation:animateColor forKey:@"animateColor"];
+            [_onLayer addAnimation:animateColor forKey:@"animateColor"];
             [CATransaction commit];
         }else {
-            [_backLayer removeAllAnimations];
-            _backLayer.fillColor = on ? _onTintColor.CGColor : _tintColor.CGColor;
+            [_onLayer removeAllAnimations];
+            _onLayer.fillColor = on ? _onTintColor.CGColor : _tintColor.CGColor;
         }
     }
 }
 
 - (void) showFillLayer:(BOOL)show animated:(BOOL)animated {
-    BOOL isVisible = [[_fillLayer valueForKey:@"isVisible"] boolValue];
+    BOOL isVisible = [[_offLayer valueForKey:@"isVisible"] boolValue];
     if (isVisible != show) {
-        [_fillLayer setValue:[NSNumber numberWithBool:show] forKey:@"isVisible"];
-        if (NSFoundationVersionNumber < NSFoundationVersionNumber_iOS_6_0) {
-            _fillLayer.opacity = show ? 1.0 : 0.0;
-        } else {
-            CGFloat scale = show ? 1.0 : 0.0;
-            if (animated) {
-                CGFloat from = show ? 0.0 : 1.0;
-                CABasicAnimation *animateScale = [CABasicAnimation animationWithKeyPath:@"transform.scale"];
-                animateScale.duration = 0.22;
-                animateScale.fromValue = @(from);
-                animateScale.toValue = @(scale);
-                animateScale.removedOnCompletion = NO;
-                animateScale.fillMode = kCAFillModeForwards;
-                animateScale.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
-                [_fillLayer addAnimation:animateScale forKey:@"animateScale"];
-            } else {
-                [_fillLayer removeAllAnimations];
-                [_fillLayer setValue:@(scale) forKeyPath:@"transform.scale"];
-            }
+        [_offLayer setValue:[NSNumber numberWithBool:show] forKey:@"isVisible"];
+        CGFloat scale = show ? 1.0 : 0.0;
+        if (animated) {
+            CGFloat from = show ? 0.0 : 1.0;
+            CABasicAnimation *animateScale = [CABasicAnimation animationWithKeyPath:@"transform.scale"];
+            animateScale.duration = 0.22;
+            animateScale.fromValue = [NSValue valueWithCATransform3D:CATransform3DMakeScale(from, from, 1.0)];
+            animateScale.toValue = [NSValue valueWithCATransform3D:CATransform3DMakeScale(scale, scale, 1.0)];
+            animateScale.removedOnCompletion = NO;
+            animateScale.fillMode = kCAFillModeForwards;
+            animateScale.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
+            [_offLayer addAnimation:animateScale forKey:@"animateScale"];
+        }else {
+            [_offLayer removeAllAnimations];
+            _offLayer.transform = CATransform3DMakeScale(scale,scale,1.0);
         }
     }
+}
+
+- (void) updateBackLayerColorWithanimated:(BOOL)animated {
+        if (animated) {
+            CABasicAnimation *animateColor = [CABasicAnimation animationWithKeyPath:@"backgroundColor"];
+            animateColor.duration = 0.22;
+            animateColor.fromValue = _on ? (id)_onTintColor.CGColor : (id)self.offTintColor.CGColor;
+            animateColor.toValue = _on ? (id)self.offTintColor.CGColor : (id)_onTintColor.CGColor;
+            animateColor.removedOnCompletion = NO;
+            animateColor.fillMode = kCAFillModeForwards;
+            [_backLayer addAnimation:animateColor forKey:@"animateColor"];
+            [CATransaction commit];
+        }else {
+            [_backLayer removeAllAnimations];
+            _backLayer.backgroundColor = _on ? self.offTintColor.CGColor : _onTintColor.CGColor;
+        }
 }
 
 - (void) setPressed:(BOOL)pressed {
     if (_pressed != pressed) {
         _pressed = pressed;
-
+        
         if (!_on) {
             [self showFillLayer:!_pressed animated:YES];
         }
@@ -245,34 +215,25 @@
 #pragma mark Appearance
 
 - (void) setTintColor:(UIColor *)tintColor {
-    [self setBacklayerTintColorIfNeeded];
-}
-
-- (void)setBacklayerTintColorIfNeeded
-{
-    if (![[_backLayer valueForKey:@"isOn"] boolValue]) {
-        _backLayer.fillColor = [_tintColor CGColor];
+    _tintColor = [tintColor retain];
+    if (![[_onLayer valueForKey:@"isOn"] boolValue]) {
+        _onLayer.fillColor = [_tintColor CGColor];
     }
 }
 
 - (void) setOnTintColor:(UIColor *)onTintColor {
-    _onTintColor = onTintColor;
-    [self setBacklayerOnTintColorIfNeeded];
-}
-
-- (void)setBacklayerOnTintColorIfNeeded
-{
-    if ([[_backLayer valueForKey:@"isOn"] boolValue]) {
-        _backLayer.fillColor = [_onTintColor CGColor];
+    _onTintColor = [onTintColor retain];
+    if ([[_onLayer valueForKey:@"isOn"] boolValue]) {
+        _onLayer.fillColor = [_onTintColor CGColor];
     }
 }
 
 - (void) setOffTintColor:(UIColor *)offTintColor {
-    _fillLayer.fillColor = [offTintColor CGColor];
+    _offLayer.fillColor = [offTintColor CGColor];
 }
 
 - (UIColor *) offTintColor {
-    return [UIColor colorWithCGColor:_fillLayer.fillColor];
+    return [UIColor colorWithCGColor:_offLayer.fillColor];
 }
 
 - (void) setThumbTintColor:(UIColor *)thumbTintColor {
@@ -281,12 +242,6 @@
 
 - (UIColor *) thumbTintColor {
     return [UIColor colorWithCGColor:_thumbLayer.fillColor];
-}
-
-- (void) setEnabled:(BOOL)enabled
-{
-    self.alpha = enabled ? 1.f : .5f;
-    [super setEnabled:enabled];
 }
 
 #pragma mark -
@@ -323,12 +278,12 @@
                                        _thumbLayer.frame.origin.y,
                                        _thumbLayer.frame.size.width,
                                        _thumbLayer.frame.size.height);
-
+        
         if (CGRectGetMidX(_thumbLayer.frame) > CGRectGetMidX(self.bounds)
-            && ![[_backLayer valueForKey:@"isOn"] boolValue]) {
+            && ![[_onLayer valueForKey:@"isOn"] boolValue]) {
             [self setBackgroundOn:YES animated:YES];
         }else if (CGRectGetMidX(_thumbLayer.frame) < CGRectGetMidX(self.bounds)
-                  && [[_backLayer valueForKey:@"isOn"] boolValue]){
+                  && [[_onLayer valueForKey:@"isOn"] boolValue]){
             [self setBackgroundOn:NO animated:YES];
         }
         
@@ -381,23 +336,23 @@
 #pragma mark Thumb Frame
 
 - (CGRect) thumbFrameForState:(BOOL)isOn {
-    return CGRectMake(isOn ? self.bounds.size.width-self.bounds.size.height+2.0 : 2.0,
-                      2.0,
-                      self.bounds.size.height-4.0,
-                      self.bounds.size.height-4.0);
+    return CGRectMake(isOn ? self.bounds.size.width-self.bounds.size.height+1.0 : 1.0,
+                      1.0,
+                      self.bounds.size.height-2.0,
+                      self.bounds.size.height-2.0);
 }
 
 #pragma mark -
 #pragma mark Dealloc
 
 - (void) dealloc {
-    _tintColor = nil;
-    _onTintColor = nil;
-    _thumbLayer = nil;
-    _fillLayer = nil;
-    _backLayer = nil;
-    _onIMGLayer = nil;
-    _offIMGLayer = nil;
+    [_tintColor release], _tintColor = nil;
+    [_onTintColor release], _onTintColor = nil;
+    
+    [_thumbLayer release], _thumbLayer = nil;
+    [_offLayer release], _offLayer = nil;
+    [_onLayer release], _onLayer = nil;
+    [super dealloc];
 }
 
 @end
